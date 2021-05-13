@@ -1,6 +1,5 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
 using UnityEngine;
 using UnityEngine.UI;
 using DG.Tweening;
@@ -13,8 +12,8 @@ public class MazeGenerator : MonoBehaviour
     [Space]
     [SerializeField] private Vector2Int _startCellCoordinates;   //coordinates(from left-bottom corner) which the algorithm starts from
     [Space]
-    [SerializeField] private SpriteRenderer _currentCellMarker;     //marker to show how maze is built
-    [SerializeField] private SpriteRenderer _previousCellMarker;    //marker to show how maze is built
+    [SerializeField] private SpriteRenderer _currentCellMarker;     //marker to show how maze is built (for animation)
+    [SerializeField] private SpriteRenderer _previousCellMarker;    //marker to show how maze is built (for animation)
     [Space]
     [SerializeField] private Slider _widthSlider;
     [SerializeField] private Slider _heightSlider;
@@ -22,12 +21,12 @@ public class MazeGenerator : MonoBehaviour
 
     private Vector2Int _mazeSize;     //width and height of the maze
 
-    private GameObject _currentMaze;
-    private Vector3 _leftBottomCorner;
-    private MarkedCell[,] _cells;
+    private GameObject _currentMaze;  //maze parent object
+    private Vector3 _leftBottomCorner;//world position of left-bottom corner of the maze
+    private MarkedCell[,] _cells;     //links to all the marked cells
 
-    private Tween _currentMove;
-    private Tween _previousMove;
+    private Tween _currentMove;       //current step animation
+    private Tween _previousMove;      //previous step animation
     private float _stepTime;          //time to move to next step
 
     private enum Direction
@@ -36,12 +35,6 @@ public class MazeGenerator : MonoBehaviour
         Up,
         Right,
         Down
-    }
-
-    private void Awake()
-    {
-        _leftBottomCorner = transform.position + new Vector3(-_mazeSize.x / 2, -_mazeSize.y / 2, 0);
-        _cells = new MarkedCell[_mazeSize.x, _mazeSize.y];
     }
 
     private void OnValidate()
@@ -99,24 +92,25 @@ public class MazeGenerator : MonoBehaviour
 
     public void RegenerateMaze()
     {
-        StopPreviousGeneration();
+        DestroyPreviousGeneration();
+        PrepareForGeneration();
 
-        _mazeSize = new Vector2Int((int)_widthSlider.value, (int)_heightSlider.value);
-        _stepTime = _stepTimeSlider.value;
-
-        if (_currentMaze != null)
-            Destroy(_currentMaze);
-
-        _currentMaze = new GameObject("Maze");
-
-        _leftBottomCorner = transform.position + new Vector3(-_mazeSize.x / 2, -_mazeSize.y / 2, 0);
         InitializeOuterWalls();
         InitializeCells();
         GenerateMaze();
     }
 
-    //If there was a maze before, stops it's algorithm
-    private void StopPreviousGeneration()
+    //gets all the data from sliders and sets some variables for new generation
+    private void PrepareForGeneration()
+    {
+        _mazeSize = new Vector2Int((int)_widthSlider.value, (int)_heightSlider.value);
+        _stepTime = _stepTimeSlider.value;
+        _currentMaze = new GameObject("Maze");
+        _leftBottomCorner = transform.position + new Vector3(-_mazeSize.x / 2, -_mazeSize.y / 2, 0);
+    }
+
+    //If there was a maze before, stops it's algorithm and destroys it
+    private void DestroyPreviousGeneration()
     {
         StopAllCoroutines();
 
@@ -125,6 +119,9 @@ public class MazeGenerator : MonoBehaviour
 
         if (_previousMove != null && _previousMove.IsPlaying())
             _previousMove.Kill();
+
+        if (_currentMaze != null)
+            Destroy(_currentMaze);
     }
 
     //recursive method which makes the maze perfect
